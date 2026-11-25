@@ -108,6 +108,10 @@
             display: inline-flex;
             align-items: center;
             gap: 5px;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .hud-status-dot {
@@ -116,6 +120,7 @@
             border-radius: 50%;
             background: var(--accent);
             box-shadow: 0 0 6px var(--accent);
+            flex-shrink: 0;
         }
 
         .header-actions {
@@ -451,7 +456,7 @@
                 <div class="hud-title">J.A.R.V.I.S.</div>
                 <div class="hud-status-badge">
                     <div class="hud-status-dot"></div>
-                    <span id="modelLabel">Gemini 2.5 Flash</span>
+                    <span id="modelLabel">gemini-3.8-flash</span>
                 </div>
             </div>
         </div>
@@ -487,7 +492,7 @@
             </div>
             <div class="welcome-title">Jarvis Online, Sir.</div>
             <div class="welcome-subtitle">
-                Powered directly by <b>Google Gemini 2.5 Flash</b>.<br>
+                Powered directly by <b>Google Gemini API</b>.<br>
                 Running 100% standalone on Mobile Data & Wi-Fi.
             </div>
             <div class="chips-scroll">
@@ -522,22 +527,65 @@
 
         let isGenerating = false;
         let voiceEnabled = true;
+        let activeModel = "gemini-3.8-flash";
         let conversationHistory = [];
 
         const SYSTEM_INSTRUCTION = "You are J.A.R.V.I.S., a witty, highly intelligent, elegant, and loyal personal AI assistant. You speak with polite, concise and brilliant professionalism. Address the user respectfully as 'Sir'. Format responses using clean Markdown.";
+
+        // Auto-fetch models from API key and select best active model
+        async function autoLoadModelsFromApi(key) {
+            if (!key || key.trim() === "") return;
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+                const res = await fetch(url);
+                if (!res.ok) return;
+
+                const data = await res.json();
+                const genModels = (data.models || [])
+                    .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+                    .map(m => m.name.replace(/^models\//, ''))
+                    .filter(name => name.includes('gemini'));
+
+                if (genModels.length > 0) {
+                    // Pick the highest/best flash model
+                    let best = genModels.find(m => m.includes('3.8-flash')) ||
+                               genModels.find(m => m.includes('3.5-flash')) ||
+                               genModels.find(m => m.includes('2.0-flash')) ||
+                               genModels.find(m => m.includes('flash')) ||
+                               genModels[0];
+
+                    activeModel = best;
+                    if (modelLabel) modelLabel.innerText = best;
+                    if (window.AndroidBridge && window.AndroidBridge.setModel) {
+                        window.AndroidBridge.setModel(best);
+                    }
+                }
+            } catch (e) {
+                console.warn("Could not auto-load models:", e);
+            }
+        }
 
         // Initialize from AndroidBridge
         function syncConfig() {
             if (window.AndroidBridge) {
                 const key = window.AndroidBridge.getApiKey ? window.AndroidBridge.getApiKey() : "";
-                const model = window.AndroidBridge.getModel ? window.AndroidBridge.getModel() : "gemini-2.5-flash";
+                const storedModel = window.AndroidBridge.getModel ? window.AndroidBridge.getModel() : "gemini-3.8-flash";
                 voiceEnabled = window.AndroidBridge.isVoiceEnabled ? window.AndroidBridge.isVoiceEnabled() : true;
 
-                if (modelLabel) modelLabel.innerText = model;
+                if (storedModel && !storedModel.includes('2.5-flash')) {
+                    activeModel = storedModel;
+                } else {
+                    activeModel = "gemini-3.8-flash";
+                }
+
+                if (modelLabel) modelLabel.innerText = activeModel;
+
                 if (!key || key.trim() === "") {
                     keyBanner.style.display = 'flex';
                 } else {
                     keyBanner.style.display = 'none';
+                    // Automatically load available models from Google API
+                    autoLoadModelsFromApi(key);
                 }
                 updateVoiceBtn();
             }
@@ -604,14 +652,14 @@
 
         async function sendMessage() {
             const text = userInput.value.trim();
-            if (!text || isGenerating) return;
+            if (!text && conversationHistory.length === 0) return;
+            if (isGenerating) return;
 
             let apiKey = "";
-            let model = "gemini-2.5-flash";
-
             if (window.AndroidBridge) {
                 apiKey = window.AndroidBridge.getApiKey();
-                model = window.AndroidBridge.getModel() || "gemini-2.5-flash";
+                const m = window.AndroidBridge.getModel();
+                if (m && !m.includes('2.5-flash')) activeModel = m;
             }
 
             if (!apiKey || apiKey.trim() === "") {
@@ -619,24 +667,26 @@
                 return;
             }
 
-            // Append User Message
-            appendMessage('user', text);
-            userInput.value = '';
-            userInput.style.height = 'auto';
+            if (text) {
+                // Append User Message
+                appendMessage('user', text);
+                userInput.value = '';
+                userInput.style.height = 'auto';
 
-            // Add to history
-            conversationHistory.push({
-                role: 'user',
-                parts: [{ text: text }]
-            });
+                // Add to history
+                conversationHistory.push({
+                    role: 'user',
+                    parts: [{ text: text }]
+                });
+            }
 
-            // Start typing
+            // Start typing indicator
             isGenerating = true;
             miniCore.classList.add('thinking');
             const typingRow = appendTypingIndicator();
 
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(url, {
                     method: 'POST',
@@ -658,6 +708,22 @@
                 if (!response.ok) {
                     const errJson = await response.json().catch(() => ({}));
                     const errMsg = errJson.error?.message || `HTTP ${response.status}: Failed to reach Gemini API.`;
+
+                    // Smart Auto-Recovery: if error says "Please update your code to use models/gemini-3.8-flash"
+                    const modelMatch = errMsg.match(/models\/(gemini-[\w.-]+)/);
+                    if (modelMatch && modelMatch[1] && modelMatch[1] !== activeModel) {
+                        const newModel = modelMatch[1];
+                        activeModel = newModel;
+                        if (modelLabel) modelLabel.innerText = newModel;
+                        if (window.AndroidBridge && window.AndroidBridge.setModel) {
+                            window.AndroidBridge.setModel(newModel);
+                        }
+                        // Silently retry with the suggested model!
+                        isGenerating = false;
+                        miniCore.classList.remove('thinking');
+                        return sendMessage();
+                    }
+
                     appendMessage('jarvis', `⚠️ **Error:** ${errMsg}`);
                     return;
                 }
@@ -676,7 +742,6 @@
 
                 // Voice TTS
                 if (voiceEnabled && window.AndroidBridge && window.AndroidBridge.speak) {
-                    // Strip markdown for clean TTS speech
                     const cleanSpeech = reply.replace(/[#*`_>~]/g, '').trim();
                     window.AndroidBridge.speak(cleanSpeech);
                 }
@@ -732,18 +797,12 @@
 
         function formatMarkdown(text) {
             if (!text) return '';
-            // Basic HTML escape
             let escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-            // Code blocks
             escaped = escaped.replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-            // Inline code
             escaped = escaped.replace(/`([^`]+)`/g, '<code>$1</code>');
-            // Bold
             escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
-            // Italic
             escaped = escaped.replace(/\*([^*]+)\*/g, '<i>$1</i>');
-            // Newlines
             escaped = escaped.replace(/\n\n/g, '<p></p>');
             escaped = escaped.replace(/\n/g, '<br>');
 

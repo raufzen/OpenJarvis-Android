@@ -39,10 +39,10 @@ jobs:
           find app/build/outputs/apk/ -name "*.apk" -type f
           find app/build/outputs/apk/ -name "*.apk" -type f -exec cp {} dist/ \;
           if [ -f dist/app-debug.apk ]; then
-            cp dist/app-debug.apk dist/OpenJarvis-v1.1.0.apk
+            cp dist/app-debug.apk dist/OpenJarvis-v1.2.0.apk
           fi
           if [ -f dist/app-release.apk ]; then
-            cp dist/app-release.apk dist/OpenJarvis-v1.1.0-release.apk
+            cp dist/app-release.apk dist/OpenJarvis-v1.2.0-release.apk
           fi
           echo "Files in dist/:"
           ls -la dist/
@@ -50,7 +50,7 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenJarvis-v1.1.0-APK
+          name: OpenJarvis-v1.2.0-APK
           path: dist/*.apk
           retention-days: 30
 
@@ -58,25 +58,21 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: "OpenJarvis Mobile v1.1.0 (Gemini 4G Standalone)"
+          tag_name: v1.2.0
+          name: "OpenJarvis Mobile v1.2.0 (Auto-Load Models from API Key)"
           draft: false
           prerelease: false
           files: dist/*.apk
           body: |
-            # 🚀 OpenJarvis Mobile v1.1.0 — Gemini 4G Standalone Edition
-
-            Standalone Android AI Assistant powered directly by **Google Gemini API** (`gemini-2.5-flash`).
-            **No PC, No server, and No Wi-Fi required!** Runs anywhere directly over Mobile Data (4G/5G).
+            # 🚀 OpenJarvis Mobile v1.2.0 — Auto Model Discovery Edition
 
             ### 📦 Download & Install:
-            - **[OpenJarvis-v1.1.0.apk](https://github.com/${{ github.repository }}/releases/download/v1.1.0/OpenJarvis-v1.1.0.apk)**
+            - **[OpenJarvis-v1.2.0.apk](https://github.com/${{ github.repository }}/releases/download/v1.2.0/OpenJarvis-v1.2.0.apk)**
 
-            ### ✨ What's New in v1.1.0:
-            - 🌟 **Google Gemini Mode (No Wi-Fi Needed):** Runs 100% standalone on 4G Mobile Data directly through Google Gemini 2.5 Flash / 2.0 Flash.
-            - 🎙️ **Jarvis Voice Conversation (TTS & STT):** Talk to Jarvis using your voice and listen to Jarvis speak back replies!
-            - 🔑 **Built-in API Key Setup & Testing:** Directly test and validate your Gemini API Key in seconds.
-            - 💻 **Dual Mode:** Switch anytime between standalone Gemini Mode and PC OpenJarvis Server Mode.
-            - 🎨 **Enhanced Cyberpunk HUD:** Reactive Arc Reactor pulsing during reasoning and speech.
+            ### ✨ What's New in v1.2.0:
+            - 🤖 **Auto-Load Models from API Key:** The app automatically queries Google Gemini API to fetch every model supported by your API key!
+            - ⚡ **Default Updated to gemini-3.8-flash:** Uses the latest available Gemini 3.8 Flash model instead of deprecated versions.
+            - 🔄 **Smart Auto-Recovery:** If any model becomes unavailable, Jarvis automatically detects the recommended model and seamlessly retries without interrupting you.
+            - 🎙️ **Full Voice Conversation (TTS & STT):** Talk hands-free and hear Jarvis reply!
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

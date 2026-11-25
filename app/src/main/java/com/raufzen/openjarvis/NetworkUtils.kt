@@ -9,6 +9,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 data class ServerCheckResult(
@@ -70,6 +71,67 @@ object NetworkUtils {
                     errorMessage = innerEx.localizedMessage ?: "Connection timed out"
                 )
             }
+        }
+    }
+
+    suspend fun fetchAvailableModels(apiKey: String): Result<List<String>> = withContext(Dispatchers.IO) {
+        if (apiKey.isBlank()) {
+            return@withContext Result.failure(Exception("API Key cannot be empty"))
+        }
+
+        val url = "https://generativelanguage.googleapis.com/v1beta/models?key=$apiKey"
+        val request = Request.Builder().url(url).get().build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val err = response.body?.string() ?: ""
+                    return@withContext Result.failure(Exception("HTTP ${response.code}: $err"))
+                }
+
+                val bodyStr = response.body?.string() ?: ""
+                val json = JSONObject(bodyStr)
+                val modelsArray = json.optJSONArray("models") ?: return@withContext Result.success(emptyList())
+
+                val extracted = mutableListOf<String>()
+                for (i in 0 until modelsArray.length()) {
+                    val modelObj = modelsArray.getJSONObject(i)
+                    val rawName = modelObj.optString("name", "")
+                    val methods = modelObj.optJSONArray("supportedGenerationMethods")
+
+                    var canGenerate = false
+                    if (methods != null) {
+                        for (j in 0 until methods.length()) {
+                            if (methods.getString(j) == "generateContent") {
+                                canGenerate = true
+                                break
+                            }
+                        }
+                    }
+
+                    if (canGenerate && rawName.contains("gemini")) {
+                        val cleanName = rawName.removePrefix("models/")
+                        extracted.add(cleanName)
+                    }
+                }
+
+                // Sort models so best/newest flash is on top
+                extracted.sortWith { a, b ->
+                    when {
+                        a.contains("3.8-flash") -> -1
+                        b.contains("3.8-flash") -> 1
+                        a.contains("3.5-flash") -> -1
+                        b.contains("3.5-flash") -> 1
+                        a.contains("flash") && !b.contains("flash") -> -1
+                        !a.contains("flash") && b.contains("flash") -> 1
+                        else -> b.compareTo(a)
+                    }
+                }
+
+                Result.success(extracted)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

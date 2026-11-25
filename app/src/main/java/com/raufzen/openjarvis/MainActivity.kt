@@ -12,6 +12,7 @@ import android.speech.tts.TextToSpeech
 import android.view.LayoutInflater
 import android.view.View
 import android.webkit.*
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +23,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.raufzen.openjarvis.databinding.ActivityMainBinding
 import com.raufzen.openjarvis.databinding.DialogServerConfigBinding
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import java.util.Locale
 
 class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
@@ -62,7 +64,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
-        // Permissions granted or handled
+        // Permissions handled
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,6 +80,21 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setupSwipeRefresh()
         setupBackNavigation()
         requestAppPermissions()
+
+        // Background auto-refresh available models if key is present
+        if (config.geminiApiKey.isNotBlank()) {
+            lifecycleScope.launch {
+                val res = NetworkUtils.fetchAvailableModels(config.geminiApiKey)
+                res.onSuccess { models ->
+                    if (models.isNotEmpty()) {
+                        config.cachedModels = models
+                        if (!models.contains(config.geminiModel)) {
+                            config.geminiModel = models.first()
+                        }
+                    }
+                }
+            }
+        }
 
         checkServerAndLoad()
     }
@@ -239,7 +256,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         binding.progressBar.visibility = View.VISIBLE
 
         if (config.appMode == ServerConfig.MODE_GEMINI) {
-            // Standalone Gemini AI Mode (Works on Mobile Data without Wi-Fi!)
+            // Standalone Gemini AI Mode (Works on 4G Mobile Data without Wi-Fi!)
             updateStatus(ConnectionStatus.CONNECTED, "Gemini Active")
             binding.webView.loadUrl("file:///android_asset/jarvis_gemini.html")
             return
@@ -310,12 +327,67 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         // Gemini Settings
         dialogBinding.etGeminiKey.setText(config.geminiApiKey)
-        when (config.geminiModel) {
-            "gemini-2.0-flash" -> dialogBinding.rbModel20Flash.isChecked = true
-            "gemini-1.5-flash" -> dialogBinding.rbModel15Flash.isChecked = true
-            else -> dialogBinding.rbModel25Flash.isChecked = true
-        }
         dialogBinding.switchVoice.isChecked = config.isVoiceTtsEnabled
+
+        // Model List Adapter Setup
+        val currentModels = config.cachedModels.toMutableList()
+        if (!currentModels.contains(config.geminiModel)) {
+            currentModels.add(0, config.geminiModel)
+        }
+        val modelAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, currentModels)
+        dialogBinding.spGeminiModel.adapter = modelAdapter
+        val selectedIdx = currentModels.indexOf(config.geminiModel)
+        if (selectedIdx >= 0) {
+            dialogBinding.spGeminiModel.setSelection(selectedIdx)
+        }
+        dialogBinding.tvModelCount.text = "${currentModels.size} models available"
+
+        // Function to fetch models dynamically from Google API using entered key
+        fun fetchAndPopulateModels(key: String, onComplete: ((List<String>) -> Unit)? = null) {
+            if (key.isBlank()) return
+            dialogBinding.tvModelCount.text = "Loading models from your API key..."
+            dialogBinding.tvModelCount.setTextColor(ContextCompat.getColor(this, R.color.jarvis_primary))
+
+            lifecycleScope.launch {
+                val res = NetworkUtils.fetchAvailableModels(key)
+                res.onSuccess { models ->
+                    if (models.isNotEmpty()) {
+                        config.cachedModels = models
+                        modelAdapter.clear()
+                        modelAdapter.addAll(models)
+                        modelAdapter.notifyDataSetChanged()
+
+                        val bestIdx = when {
+                            models.contains(config.geminiModel) -> models.indexOf(config.geminiModel)
+                            models.any { it.contains("3.8-flash") } -> models.indexOfFirst { it.contains("3.8-flash") }
+                            models.any { it.contains("flash") } -> models.indexOfFirst { it.contains("flash") }
+                            else -> 0
+                        }
+                        dialogBinding.spGeminiModel.setSelection(bestIdx)
+                        dialogBinding.tvModelCount.text = "✓ ${models.size} models loaded from your API key"
+                        dialogBinding.tvModelCount.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.jarvis_accent))
+                        onComplete?.invoke(models)
+                    }
+                }.onFailure { err ->
+                    dialogBinding.tvModelCount.text = "Error loading models: ${err.localizedMessage}"
+                    dialogBinding.tvModelCount.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.jarvis_danger))
+                }
+            }
+        }
+
+        // Auto-fetch if key exists
+        if (config.geminiApiKey.isNotBlank()) {
+            fetchAndPopulateModels(config.geminiApiKey)
+        }
+
+        dialogBinding.btnFetchModels.setOnClickListener {
+            val key = dialogBinding.etGeminiKey.text.toString().trim()
+            if (key.isBlank()) {
+                Toast.makeText(this, "Please enter your Gemini API key first", Toast.LENGTH_SHORT).show()
+            } else {
+                fetchAndPopulateModels(key)
+            }
+        }
 
         dialogBinding.btnGetKey.setOnClickListener {
             val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey"))
@@ -324,11 +396,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         dialogBinding.btnTestGemini.setOnClickListener {
             val key = dialogBinding.etGeminiKey.text.toString().trim()
-            val selectedModel = when {
-                dialogBinding.rbModel20Flash.isChecked -> "gemini-2.0-flash"
-                dialogBinding.rbModel15Flash.isChecked -> "gemini-1.5-flash"
-                else -> "gemini-2.5-flash"
-            }
+            val selectedModel = dialogBinding.spGeminiModel.selectedItem?.toString() ?: ServerConfig.DEFAULT_GEMINI_MODEL
 
             dialogBinding.tvTestResult.visibility = View.VISIBLE
             dialogBinding.tvTestResult.text = "Testing Google Gemini API..."
@@ -337,8 +405,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             lifecycleScope.launch {
                 val testRes = NetworkUtils.testGeminiApiKey(key, selectedModel)
                 if (testRes.isReachable) {
-                    dialogBinding.tvTestResult.text = "✓ Gemini API Active! (${testRes.latencyMs}ms)"
+                    dialogBinding.tvTestResult.text = "✓ Gemini API Active ($selectedModel, ${testRes.latencyMs}ms)"
                     dialogBinding.tvTestResult.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.jarvis_accent))
+                    // Also refresh models
+                    fetchAndPopulateModels(key)
                 } else {
                     dialogBinding.tvTestResult.text = "✗ Failed: ${testRes.errorMessage ?: "Invalid API Key"}"
                     dialogBinding.tvTestResult.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.jarvis_danger))
@@ -398,11 +468,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             if (dialogBinding.rbModeGemini.isChecked) {
                 config.appMode = ServerConfig.MODE_GEMINI
                 val key = dialogBinding.etGeminiKey.text.toString().trim()
-                val selectedModel = when {
-                    dialogBinding.rbModel20Flash.isChecked -> "gemini-2.0-flash"
-                    dialogBinding.rbModel15Flash.isChecked -> "gemini-1.5-flash"
-                    else -> "gemini-2.5-flash"
-                }
+                val selectedModel = dialogBinding.spGeminiModel.selectedItem?.toString() ?: ServerConfig.DEFAULT_GEMINI_MODEL
                 config.saveGemini(key, selectedModel, dialogBinding.switchVoice.isChecked)
             } else {
                 config.appMode = ServerConfig.MODE_LOCAL_SERVER
@@ -425,6 +491,19 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         @JavascriptInterface
         fun getModel(): String = config.geminiModel
+
+        @JavascriptInterface
+        fun setModel(model: String) {
+            if (model.isNotBlank()) {
+                config.geminiModel = model
+            }
+        }
+
+        @JavascriptInterface
+        fun getCachedModels(): String {
+            val arr = JSONArray(config.cachedModels)
+            return arr.toString()
+        }
 
         @JavascriptInterface
         fun isVoiceEnabled(): Boolean = config.isVoiceTtsEnabled

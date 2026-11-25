@@ -89,52 +89,39 @@
                     android:textColor="@color/jarvis_text_primary" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Dynamic Model Selector -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Gemini Model:"
+                android:layout_marginTop="14dp"
+                android:text="Active Model (Auto-loaded from API Key):"
                 android:textColor="@color/jarvis_text_secondary"
                 android:textSize="12sp" />
 
-            <RadioGroup
-                android:id="@+id/rgGeminiModel"
+            <Spinner
+                android:id="@+id/spGeminiModel"
                 android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="6dp"
+                android:background="@drawable/bg_chip"
+                android:paddingHorizontal="10dp"
+                android:spinnerMode="dropdown" />
+
+            <TextView
+                android:id="@+id/tvModelCount"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp">
+                android:layout_marginTop="4dp"
+                android:text="Models auto-load when API key is provided"
+                android:textColor="@color/jarvis_primary"
+                android:textSize="11sp" />
 
-                <RadioButton
-                    android:id="@+id/rbModel25Flash"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="gemini-2.5-flash (Fast &amp; Smart)"
-                    android:textColor="@color/jarvis_text_primary"
-                    android:textSize="12sp" />
-
-                <RadioButton
-                    android:id="@+id/rbModel20Flash"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="gemini-2.0-flash"
-                    android:textColor="@color/jarvis_text_primary"
-                    android:textSize="12sp" />
-
-                <RadioButton
-                    android:id="@+id/rbModel15Flash"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="gemini-1.5-flash"
-                    android:textColor="@color/jarvis_text_primary"
-                    android:textSize="12sp" />
-            </RadioGroup>
-
-            <!-- Voice TTS Checkbox / Switch -->
+            <!-- Voice TTS Switch -->
             <com.google.android.material.switchmaterial.SwitchMaterial
                 android:id="@+id/switchVoice"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:checked="true"
                 android:text="Speak Answers (Voice TTS)"
                 android:textColor="@color/jarvis_text_primary"
@@ -143,7 +130,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <com.google.android.material.button.MaterialButton
@@ -153,7 +140,19 @@
                     android:layout_height="38dp"
                     android:layout_weight="1"
                     android:padding="0dp"
-                    android:text="🔑 Get Free Key"
+                    android:text="🔑 Get Key"
+                    android:textColor="@color/jarvis_primary"
+                    android:textSize="11sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnFetchModels"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:padding="0dp"
+                    android:text="🔄 Load Models"
                     android:textColor="@color/jarvis_primary"
                     android:textSize="11sp" />
 
@@ -162,11 +161,11 @@
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="0dp"
                     android:layout_height="38dp"
-                    android:layout_marginStart="8dp"
+                    android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:padding="0dp"
                     android:text="Test API"
-                    android:textColor="@color/jarvis_primary"
+                    android:textColor="@color/jarvis_accent"
                     android:textSize="11sp" />
             </LinearLayout>
 

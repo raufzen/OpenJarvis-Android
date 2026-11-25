@@ -2,6 +2,7 @@ package com.raufzen.openjarvis
 
 import android.content.Context
 import android.content.SharedPreferences
+import org.json.JSONArray
 
 class ServerConfig(context: Context) {
     private val prefs: SharedPreferences =
@@ -18,6 +19,21 @@ class ServerConfig(context: Context) {
     var geminiModel: String
         get() = prefs.getString(KEY_GEMINI_MODEL, DEFAULT_GEMINI_MODEL) ?: DEFAULT_GEMINI_MODEL
         set(value) = prefs.edit().putString(KEY_GEMINI_MODEL, value).apply()
+
+    var cachedModels: List<String>
+        get() {
+            val jsonStr = prefs.getString(KEY_CACHED_MODELS, null) ?: return listOf(DEFAULT_GEMINI_MODEL)
+            return try {
+                val array = JSONArray(jsonStr)
+                List(array.length()) { array.getString(it) }
+            } catch (e: Exception) {
+                listOf(DEFAULT_GEMINI_MODEL)
+            }
+        }
+        set(value) {
+            val array = JSONArray(value)
+            prefs.edit().putString(KEY_CACHED_MODELS, array.toString()).apply()
+        }
 
     var isVoiceTtsEnabled: Boolean
         get() = prefs.getBoolean(KEY_VOICE_TTS, true)
@@ -61,13 +77,14 @@ class ServerConfig(context: Context) {
         private const val KEY_APP_MODE = "app_mode"
         private const val KEY_GEMINI_KEY = "gemini_api_key"
         private const val KEY_GEMINI_MODEL = "gemini_model"
+        private const val KEY_CACHED_MODELS = "cached_gemini_models"
         private const val KEY_VOICE_TTS = "voice_tts_enabled"
 
         private const val KEY_PROTOCOL = "server_protocol"
         private const val KEY_HOST = "server_host"
         private const val KEY_PORT = "server_port"
 
-        const val DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+        const val DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
         const val DEFAULT_HOST = "192.168.1.100"
         const val DEFAULT_PORT = 8000
     }
