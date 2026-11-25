@@ -7,14 +7,14 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
 import android.view.LayoutInflater
 import android.view.View
 import android.webkit.*
-import android.widget.RadioButton
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -22,13 +22,15 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.raufzen.openjarvis.databinding.ActivityMainBinding
 import com.raufzen.openjarvis.databinding.DialogServerConfigBinding
 import kotlinx.coroutines.launch
+import java.util.Locale
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var config: ServerConfig
     private var fileUploadCallback: ValueCallback<Array<Uri>>? = null
-    private var isConnected = false
+    private var tts: TextToSpeech? = null
+    private var isTtsReady = false
     private var backPressedTime: Long = 0
 
     private val filePickerLauncher = registerForActivityResult(
@@ -44,10 +46,23 @@ class MainActivity : AppCompatActivity() {
         fileUploadCallback = null
     }
 
+    private val voiceInputLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK && result.data != null) {
+            val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spokenText = matches?.firstOrNull() ?: ""
+            if (spokenText.isNotBlank()) {
+                val clean = spokenText.replace("'", "\\'").replace("\n", " ")
+                binding.webView.evaluateJavascript("setVoiceInputText('$clean');", null)
+            }
+        }
+    }
+
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        // Handle permissions
+    ) {
+        // Permissions granted or handled
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +71,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         config = ServerConfig(this)
+        tts = TextToSpeech(this, this)
 
         setupTopBar()
         setupWebView()
@@ -64,6 +80,19 @@ class MainActivity : AppCompatActivity() {
         requestAppPermissions()
 
         checkServerAndLoad()
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            tts?.language = Locale.US
+            isTtsReady = true
+        }
+    }
+
+    override fun onDestroy() {
+        tts?.stop()
+        tts?.shutdown()
+        super.onDestroy()
     }
 
     private fun setupTopBar() {
@@ -145,14 +174,14 @@ class MainActivity : AppCompatActivity() {
                 binding.progressBar.visibility = View.GONE
                 binding.swipeRefresh.isRefreshing = false
 
-                if (url?.startsWith("file:///android_asset/") == true) {
-                    updateStatus(ConnectionStatus.OFFLINE)
-                    binding.webView.evaluateJavascript(
-                        "setServerUrl('${config.baseUrl}');",
-                        null
-                    )
+                if (url?.contains("jarvis_gemini.html") == true) {
+                    updateStatus(ConnectionStatus.CONNECTED, "Gemini Active")
+                    binding.webView.evaluateJavascript("syncConfig();", null)
+                } else if (url?.startsWith("file:///android_asset/offline_fallback.html") == true) {
+                    updateStatus(ConnectionStatus.OFFLINE, "Server Offline")
+                    binding.webView.evaluateJavascript("setServerUrl('${config.baseUrl}');", null)
                 } else {
-                    updateStatus(ConnectionStatus.CONNECTED)
+                    updateStatus(ConnectionStatus.CONNECTED, "Server Online")
                 }
             }
 
@@ -161,7 +190,7 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest?,
                 error: WebResourceError?
             ) {
-                if (request?.isForMainFrame == true) {
+                if (request?.isForMainFrame == true && config.appMode == ServerConfig.MODE_LOCAL_SERVER) {
                     loadOfflineFallback()
                 }
             }
@@ -207,16 +236,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkServerAndLoad() {
-        updateStatus(ConnectionStatus.CONNECTING)
         binding.progressBar.visibility = View.VISIBLE
+
+        if (config.appMode == ServerConfig.MODE_GEMINI) {
+            // Standalone Gemini AI Mode (Works on Mobile Data without Wi-Fi!)
+            updateStatus(ConnectionStatus.CONNECTED, "Gemini Active")
+            binding.webView.loadUrl("file:///android_asset/jarvis_gemini.html")
+            return
+        }
+
+        // Local PC Server Mode (Requires Local Network/Wi-Fi)
+        updateStatus(ConnectionStatus.CONNECTING, "Connecting...")
 
         lifecycleScope.launch {
             val result = NetworkUtils.pingServer(config.baseUrl)
             if (result.isReachable) {
-                updateStatus(ConnectionStatus.CONNECTED)
+                updateStatus(ConnectionStatus.CONNECTED, "Server Online")
                 binding.webView.loadUrl(config.baseUrl)
             } else {
-                updateStatus(ConnectionStatus.OFFLINE)
+                updateStatus(ConnectionStatus.OFFLINE, "Server Offline")
                 loadOfflineFallback()
             }
         }
@@ -226,23 +264,21 @@ class MainActivity : AppCompatActivity() {
         binding.webView.loadUrl("file:///android_asset/offline_fallback.html")
     }
 
-    private fun updateStatus(status: ConnectionStatus) {
+    private fun updateStatus(status: ConnectionStatus, label: String? = null) {
         when (status) {
             ConnectionStatus.CONNECTED -> {
                 binding.viewStatusDot.setBackgroundResource(R.drawable.dot_connected)
-                binding.tvStatusText.text = getString(R.string.status_connected)
+                binding.tvStatusText.text = label ?: getString(R.string.status_connected)
                 binding.tvStatusText.setTextColor(ContextCompat.getColor(this, R.color.jarvis_accent))
-                isConnected = true
             }
             ConnectionStatus.OFFLINE -> {
                 binding.viewStatusDot.setBackgroundResource(R.drawable.dot_offline)
-                binding.tvStatusText.text = getString(R.string.status_offline)
+                binding.tvStatusText.text = label ?: getString(R.string.status_offline)
                 binding.tvStatusText.setTextColor(ContextCompat.getColor(this, R.color.jarvis_danger))
-                isConnected = false
             }
             ConnectionStatus.CONNECTING -> {
                 binding.viewStatusDot.setBackgroundResource(R.drawable.dot_connecting)
-                binding.tvStatusText.text = getString(R.string.status_connecting)
+                binding.tvStatusText.text = label ?: getString(R.string.status_connecting)
                 binding.tvStatusText.setTextColor(ContextCompat.getColor(this, R.color.jarvis_primary))
             }
         }
@@ -251,22 +287,76 @@ class MainActivity : AppCompatActivity() {
     private fun showServerConfigDialog() {
         val dialogBinding = DialogServerConfigBinding.inflate(LayoutInflater.from(this))
 
+        // App Mode Setup
+        if (config.appMode == ServerConfig.MODE_GEMINI) {
+            dialogBinding.rbModeGemini.isChecked = true
+            dialogBinding.containerGeminiSettings.visibility = View.VISIBLE
+            dialogBinding.containerServerSettings.visibility = View.GONE
+        } else {
+            dialogBinding.rbModeServer.isChecked = true
+            dialogBinding.containerGeminiSettings.visibility = View.GONE
+            dialogBinding.containerServerSettings.visibility = View.VISIBLE
+        }
+
+        dialogBinding.rgAppMode.setOnCheckedChangeListener { _, checkedId ->
+            if (checkedId == R.id.rbModeGemini) {
+                dialogBinding.containerGeminiSettings.visibility = View.VISIBLE
+                dialogBinding.containerServerSettings.visibility = View.GONE
+            } else {
+                dialogBinding.containerGeminiSettings.visibility = View.GONE
+                dialogBinding.containerServerSettings.visibility = View.VISIBLE
+            }
+        }
+
+        // Gemini Settings
+        dialogBinding.etGeminiKey.setText(config.geminiApiKey)
+        when (config.geminiModel) {
+            "gemini-2.0-flash" -> dialogBinding.rbModel20Flash.isChecked = true
+            "gemini-1.5-flash" -> dialogBinding.rbModel15Flash.isChecked = true
+            else -> dialogBinding.rbModel25Flash.isChecked = true
+        }
+        dialogBinding.switchVoice.isChecked = config.isVoiceTtsEnabled
+
+        dialogBinding.btnGetKey.setOnClickListener {
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://aistudio.google.com/apikey"))
+            startActivity(browserIntent)
+        }
+
+        dialogBinding.btnTestGemini.setOnClickListener {
+            val key = dialogBinding.etGeminiKey.text.toString().trim()
+            val selectedModel = when {
+                dialogBinding.rbModel20Flash.isChecked -> "gemini-2.0-flash"
+                dialogBinding.rbModel15Flash.isChecked -> "gemini-1.5-flash"
+                else -> "gemini-2.5-flash"
+            }
+
+            dialogBinding.tvTestResult.visibility = View.VISIBLE
+            dialogBinding.tvTestResult.text = "Testing Google Gemini API..."
+            dialogBinding.tvTestResult.setTextColor(ContextCompat.getColor(this, R.color.jarvis_primary))
+
+            lifecycleScope.launch {
+                val testRes = NetworkUtils.testGeminiApiKey(key, selectedModel)
+                if (testRes.isReachable) {
+                    dialogBinding.tvTestResult.text = "✓ Gemini API Active! (${testRes.latencyMs}ms)"
+                    dialogBinding.tvTestResult.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.jarvis_accent))
+                } else {
+                    dialogBinding.tvTestResult.text = "✗ Failed: ${testRes.errorMessage ?: "Invalid API Key"}"
+                    dialogBinding.tvTestResult.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.jarvis_danger))
+                }
+            }
+        }
+
+        // Server Settings
         if (config.protocol == "https") {
             dialogBinding.rbHttps.isChecked = true
         } else {
             dialogBinding.rbHttp.isChecked = true
         }
-
         dialogBinding.etHost.setText(config.host)
         dialogBinding.etPort.setText(config.port.toString())
 
-        // Quick presets
         dialogBinding.btnPresetLocal.setOnClickListener {
             dialogBinding.etHost.setText("127.0.0.1")
-            dialogBinding.etPort.setText("8000")
-        }
-        dialogBinding.btnPresetEmulator.setOnClickListener {
-            dialogBinding.etHost.setText("10.0.2.2")
             dialogBinding.etPort.setText("8000")
         }
         dialogBinding.btnPresetLan.setOnClickListener {
@@ -305,11 +395,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         dialogBinding.btnDialogSave.setOnClickListener {
-            val proto = if (dialogBinding.rbHttps.isChecked) "https" else "http"
-            val host = dialogBinding.etHost.text.toString().trim()
-            val port = dialogBinding.etPort.text.toString().toIntOrNull() ?: 8000
+            if (dialogBinding.rbModeGemini.isChecked) {
+                config.appMode = ServerConfig.MODE_GEMINI
+                val key = dialogBinding.etGeminiKey.text.toString().trim()
+                val selectedModel = when {
+                    dialogBinding.rbModel20Flash.isChecked -> "gemini-2.0-flash"
+                    dialogBinding.rbModel15Flash.isChecked -> "gemini-1.5-flash"
+                    else -> "gemini-2.5-flash"
+                }
+                config.saveGemini(key, selectedModel, dialogBinding.switchVoice.isChecked)
+            } else {
+                config.appMode = ServerConfig.MODE_LOCAL_SERVER
+                val proto = if (dialogBinding.rbHttps.isChecked) "https" else "http"
+                val host = dialogBinding.etHost.text.toString().trim()
+                val port = dialogBinding.etPort.text.toString().toIntOrNull() ?: 8000
+                config.saveServer(proto, host, port)
+            }
 
-            config.save(proto, host, port)
             dialog.dismiss()
             checkServerAndLoad()
         }
@@ -319,16 +421,53 @@ class MainActivity : AppCompatActivity() {
 
     inner class AndroidBridge {
         @JavascriptInterface
-        fun retry() {
-            runOnUiThread {
-                checkServerAndLoad()
-            }
+        fun getApiKey(): String = config.geminiApiKey
+
+        @JavascriptInterface
+        fun getModel(): String = config.geminiModel
+
+        @JavascriptInterface
+        fun isVoiceEnabled(): Boolean = config.isVoiceTtsEnabled
+
+        @JavascriptInterface
+        fun setVoiceEnabled(enabled: Boolean) {
+            config.isVoiceTtsEnabled = enabled
         }
 
         @JavascriptInterface
         fun openSettings() {
             runOnUiThread {
                 showServerConfigDialog()
+            }
+        }
+
+        @JavascriptInterface
+        fun startVoiceInput() {
+            runOnUiThread {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_PROMPT, "Jarvis is listening...")
+                }
+                try {
+                    voiceInputLauncher.launch(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Voice input not supported on this device", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun speak(text: String) {
+            if (!config.isVoiceTtsEnabled || !isTtsReady || text.isBlank()) return
+            runOnUiThread {
+                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis_reply")
+            }
+        }
+
+        @JavascriptInterface
+        fun retry() {
+            runOnUiThread {
+                checkServerAndLoad()
             }
         }
 

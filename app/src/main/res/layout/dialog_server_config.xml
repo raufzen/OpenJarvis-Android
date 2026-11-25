@@ -1,180 +1,327 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/jarvis_surface"
-    android:orientation="vertical"
-    android:padding="24dp">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Server Configuration"
-        android:textColor="@color/jarvis_text_primary"
-        android:textSize="20sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="Enter the IP address of your PC or server where OpenJarvis is running ('jarvis gui')."
-        android:textColor="@color/jarvis_text_secondary"
-        android:textSize="13sp" />
-
-    <!-- Protocol Selection -->
-    <RadioGroup
-        android:id="@+id/rgProtocol"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:orientation="horizontal">
-
-        <RadioButton
-            android:id="@+id/rbHttp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="http://"
-            android:textColor="@color/jarvis_text_primary" />
-
-        <RadioButton
-            android:id="@+id/rbHttps"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="24dp"
-            android:text="https://"
-            android:textColor="@color/jarvis_text_primary" />
-    </RadioGroup>
-
-    <!-- Host Input -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:hint="Host / IP Address"
-        app:boxStrokeColor="@color/jarvis_primary"
-        app:hintTextColor="@color/jarvis_primary">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etHost"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="textUri"
-            android:text="192.168.1.100"
-            android:textColor="@color/jarvis_text_primary" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- Port Input -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:hint="Port (default: 8000)"
-        app:boxStrokeColor="@color/jarvis_primary"
-        app:hintTextColor="@color/jarvis_primary">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etPort"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:text="8000"
-            android:textColor="@color/jarvis_text_primary" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <!-- Quick Presets -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:text="Quick Presets:"
-        android:textColor="@color/jarvis_text_secondary"
-        android:textSize="12sp" />
+    android:background="@color/jarvis_surface">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:padding="22dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnPresetLocal"
-            style="@style/Widget.Material3.Button.TonalButton"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:layout_weight="1"
-            android:padding="0dp"
-            android:text="127.0.0.1"
-            android:textSize="11sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Jarvis AI Settings"
+            android:textColor="@color/jarvis_text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnPresetEmulator"
-            style="@style/Widget.Material3.Button.TonalButton"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:padding="0dp"
-            android:text="10.0.2.2"
-            android:textSize="11sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Choose how you want Jarvis to connect."
+            android:textColor="@color/jarvis_text_secondary"
+            android:textSize="13sp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnPresetLan"
-            style="@style/Widget.Material3.Button.TonalButton"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:padding="0dp"
-            android:text="LAN Host"
-            android:textSize="11sp" />
+        <!-- Mode Selector -->
+        <RadioGroup
+            android:id="@+id/rgAppMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp">
+
+            <RadioButton
+                android:id="@+id/rbModeGemini"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="🌟 Gemini AI Mode (4G / Standalone - No Wi-Fi)"
+                android:textColor="@color/jarvis_text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <RadioButton
+                android:id="@+id/rbModeServer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="💻 PC Server Mode (Local Wi-Fi / OpenJarvis)"
+                android:textColor="@color/jarvis_text_primary"
+                android:textSize="13sp" />
+        </RadioGroup>
+
+        <!-- ================= GEMINI SETTINGS CONTAINER ================= -->
+        <LinearLayout
+            android:id="@+id/containerGeminiSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_chip"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Google Gemini API Configuration"
+                android:textColor="@color/jarvis_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:hint="Gemini API Key"
+                app:boxStrokeColor="@color/jarvis_primary"
+                app:endIconMode="password_toggle"
+                app:hintTextColor="@color/jarvis_primary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etGeminiKey"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:textColor="@color/jarvis_text_primary" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Gemini Model:"
+                android:textColor="@color/jarvis_text_secondary"
+                android:textSize="12sp" />
+
+            <RadioGroup
+                android:id="@+id/rgGeminiModel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp">
+
+                <RadioButton
+                    android:id="@+id/rbModel25Flash"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="gemini-2.5-flash (Fast &amp; Smart)"
+                    android:textColor="@color/jarvis_text_primary"
+                    android:textSize="12sp" />
+
+                <RadioButton
+                    android:id="@+id/rbModel20Flash"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="gemini-2.0-flash"
+                    android:textColor="@color/jarvis_text_primary"
+                    android:textSize="12sp" />
+
+                <RadioButton
+                    android:id="@+id/rbModel15Flash"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="gemini-1.5-flash"
+                    android:textColor="@color/jarvis_text_primary"
+                    android:textSize="12sp" />
+            </RadioGroup>
+
+            <!-- Voice TTS Checkbox / Switch -->
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchVoice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:checked="true"
+                android:text="Speak Answers (Voice TTS)"
+                android:textColor="@color/jarvis_text_primary"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnGetKey"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_weight="1"
+                    android:padding="0dp"
+                    android:text="🔑 Get Free Key"
+                    android:textColor="@color/jarvis_primary"
+                    android:textSize="11sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnTestGemini"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:padding="0dp"
+                    android:text="Test API"
+                    android:textColor="@color/jarvis_primary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- ================= PC SERVER SETTINGS CONTAINER ================= -->
+        <LinearLayout
+            android:id="@+id/containerServerSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_chip"
+            android:orientation="vertical"
+            android:padding="14dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Local OpenJarvis Server (PC)"
+                android:textColor="@color/jarvis_primary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <RadioGroup
+                android:id="@+id/rgProtocol"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/rbHttp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="http://"
+                    android:textColor="@color/jarvis_text_primary" />
+
+                <RadioButton
+                    android:id="@+id/rbHttps"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="https://"
+                    android:textColor="@color/jarvis_text_primary" />
+            </RadioGroup>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Host / IP Address"
+                app:boxStrokeColor="@color/jarvis_primary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etHost"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textUri"
+                    android:text="192.168.1.100"
+                    android:textColor="@color/jarvis_text_primary" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="Port (default: 8000)"
+                app:boxStrokeColor="@color/jarvis_primary">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPort"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:text="8000"
+                    android:textColor="@color/jarvis_text_primary" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPresetLocal"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:padding="0dp"
+                    android:text="127.0.0.1"
+                    android:textSize="11sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPresetLan"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:padding="0dp"
+                    android:text="LAN Host"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTestConnection"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:layout_marginTop="10dp"
+                android:text="Test Server Ping"
+                android:textColor="@color/jarvis_primary"
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+        <!-- Test Result Message -->
+        <TextView
+            android:id="@+id/tvTestResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="@color/jarvis_primary"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDialogCancel"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancel"
+                android:textColor="@color/jarvis_text_secondary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDialogSave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@color/jarvis_primary"
+                android:text="Save &amp; Apply"
+                android:textColor="@color/black" />
+        </LinearLayout>
+
     </LinearLayout>
-
-    <!-- Test Connection Result -->
-    <TextView
-        android:id="@+id/tvTestResult"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:textColor="@color/jarvis_primary"
-        android:textSize="12sp"
-        android:visibility="gone" />
-
-    <!-- Action Buttons -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:gravity="end"
-        android:orientation="horizontal">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnTestConnection"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Test"
-            android:textColor="@color/jarvis_primary" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnDialogCancel"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="Cancel"
-            android:textColor="@color/jarvis_text_secondary" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnDialogSave"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:backgroundTint="@color/jarvis_primary"
-            android:text="Connect"
-            android:textColor="@color/black" />
-    </LinearLayout>
-
-</LinearLayout>
+</ScrollView>
