@@ -8,6 +8,7 @@ pluginManagement {
             }
         }
         mavenCentral()
+        maven { url = java.net.URI.create("https://maven.aliyun.com/repository/public/") }
         gradlePluginPortal()
     }
 }
@@ -16,6 +17,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = java.net.URI.create("https://repo1.maven.org/maven2/") }
+        maven { url = java.net.URI.create("https://maven.aliyun.com/repository/public/") }
     }
 }
 
