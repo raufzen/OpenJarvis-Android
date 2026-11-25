@@ -1,0 +1,84 @@
+name: Build OpenJarvis Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Package APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant Execute Permission to Gradlew
+        run: chmod +x gradlew
+
+      - name: Build APK with Gradle
+        run: ./gradlew assembleDebug assembleRelease --stacktrace
+
+      - name: Prepare Release Artifacts
+        run: |
+          mkdir -p dist
+          # Copy available APKs
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk dist/OpenJarvis-v1.0.0-release.apk
+          fi
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk dist/OpenJarvis-v1.0.0.apk
+          fi
+          ls -la dist/
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenJarvis-v1.0.0-APK
+          path: dist/*.apk
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "OpenJarvis Mobile v1.0.0"
+          draft: false
+          prerelease: false
+          files: dist/*.apk
+          body: |
+            # 🚀 OpenJarvis Mobile v1.0.0
+
+            Official Android Companion Client for the **OpenJarvis** personal AI framework.
+
+            ### 📦 Download & Install:
+            - **[OpenJarvis-v1.0.0.apk](https://github.com/${{ github.repository }}/releases/download/v1.0.0/OpenJarvis-v1.0.0.apk)**
+
+            ### ✨ Key Features:
+            - 🌐 Seamless LAN & WAN connection to any OpenJarvis server instance (`jarvis gui` or API)
+            - 🔄 Auto-reconnect & real-time server health monitoring
+            - 🎨 Futuristic Cyberpunk dark theme with animated AI Core
+            - 🎙️ Full WebChromeClient with voice recording & camera permissions
+            - 📁 File upload support for attaching images/documents to Jarvis
+            - ⚡ Embedded interactive offline dashboard with step-by-step setup instructions
+
+            ### 🛠️ Connecting to your OpenJarvis server:
+            1. Run OpenJarvis on your PC: `jarvis gui`
+            2. Open **OpenJarvis Mobile** on your phone.
+            3. Tap the **Settings** icon and enter your PC's IP address (e.g. `http://192.168.1.100:8000`).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
